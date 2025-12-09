@@ -138,24 +138,166 @@ app.get("/health", async (req, res) => {
   }
 });
 
-// TODO : Get all available deliveries for drivers
-// route : /deliveries/available
+// Get all available deliveries (for drivers to see)
+app.get("/deliveries/available", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM deliveries 
+       WHERE status = 'PENDING'
+       ORDER BY created_at ASC`
+    );
 
-// TODO : Get deliveries assigned to a driver
-// route :/deliveries/driver/:driverId
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch deliveries" });
+  }
+});
 
-// TODO : Get specific delivery
-// route : /deliveries/:id
+// Get deliveries assigned to a driver
+app.get("/deliveries/driver/:driverId", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM deliveries 
+       WHERE driver_id = $1
+       ORDER BY created_at DESC`,
+      [req.params.driverId]
+    );
 
-// TODO : Driver accepts delivery
-// route : /deliveries/:id/assign
-// Publish event
-// Update main order status
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch driver deliveries" });
+  }
+});
 
-// tODO : Update delivery status ('PICKED_UP', 'DELIVERED')
-// route : /deliveries/:id/status'
-// Publish event
-// Update main order status
+// Get specific delivery
+app.get("/deliveries/:id", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM deliveries WHERE id = $1", [
+      req.params.id,
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Delivery not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch delivery" });
+  }
+});
+
+// Driver accepts delivery
+app.post("/deliveries/:id/assign", async (req, res) => {
+  try {
+    const { driverId, driverName } = req.body;
+
+    const result = await pool.query(
+      `UPDATE deliveries 
+       SET driver_id = $1, driver_name = $2, status = 'ASSIGNED', assigned_at = NOW()
+       WHERE id = $3 AND status = 'PENDING'
+       RETURNING *`,
+      [driverId, driverName, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Delivery not available or already assigned" });
+    }
+
+    const delivery = result.rows[0];
+
+    // Publish event
+    await producer.send({
+      topic: "order-events",
+      messages: [
+        {
+          key: delivery.order_id.toString(),
+          value: JSON.stringify({
+            eventType: "DELIVERY_ASSIGNED",
+            orderId: delivery.order_id,
+            deliveryId: delivery.id,
+            driverId: driverId,
+            driverName: driverName,
+            timestamp: new Date().toISOString(),
+          }),
+        },
+      ],
+    });
+
+    console.log(`Delivery ${delivery.id} assigned to driver ${driverName}`);
+
+    // Update main order status
+    await pool.query(
+      `UPDATE orders SET status = 'OUT_FOR_DELIVERY', updated_at = NOW() WHERE id = $1`,
+      [delivery.order_id]
+    );
+
+    res.json({
+      message: "Delivery assigned successfully",
+      delivery: delivery,
+    });
+  } catch (error) {
+    console.error("Failed to assign delivery:", error);
+    res.status(500).json({ error: "Failed to assign delivery" });
+  }
+});
+
+// Update delivery status
+app.patch("/deliveries/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const updateField =
+      status === "PICKED_UP" ? "picked_up_at" : "delivered_at";
+
+    const result = await pool.query(
+      `UPDATE deliveries 
+       SET status = $1, ${updateField} = NOW()
+       WHERE id = $2 
+       RETURNING *`,
+      [status, req.params.id]
+    );
+
+    const delivery = result.rows[0];
+
+    // Publish event
+    await producer.send({
+      topic: "order-events",
+      messages: [
+        {
+          key: delivery.order_id.toString(),
+          value: JSON.stringify({
+            eventType: "DELIVERY_STATUS_UPDATED",
+            orderId: delivery.order_id,
+            deliveryId: delivery.id,
+            status: status,
+            timestamp: new Date().toISOString(),
+          }),
+        },
+      ],
+    });
+
+    console.log(`Delivery ${delivery.id} status: ${status}`);
+
+    // Update main order status
+    const orderStatus =
+      status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY";
+    await pool.query(
+      `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2`,
+      [orderStatus, delivery.order_id]
+    );
+
+    res.json({
+      message: "Delivery status updated",
+      delivery: delivery,
+    });
+  } catch (error) {
+    console.error("Failed to update delivery:", error);
+    res.status(500).json({ error: "Failed to update delivery status" });
+  }
+});
+
 
 process.on("SIGTERM", async () => {
   await consumer.disconnect();
