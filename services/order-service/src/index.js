@@ -7,17 +7,17 @@ app.use(express.json());
 
 // Postgres DB connection
 const pool = new Pool({
-  host: "localhost",
-  port: 5433,
-  database: "orders_db",
-  user: "admin",
-  password: "password",
+  host: process.env.DB_HOST || "localhost",
+  port: process.env.DB_PORT || 5433,
+  database: process.env.DB_NAME || "orders_db",
+  user: process.env.DB_USER || "admin",
+  password: process.env.DB_PASSWORD || "password",
 });
 
-// Kafka
+//Kafka
 const kafka = new Kafka({
   clientId: "order-service",
-  brokers: ["localhost:9092"],
+  brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
 });
 
 const producer = kafka.producer();

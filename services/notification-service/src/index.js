@@ -14,7 +14,7 @@ const io = new Server(server, {
 });
 const kafka = new Kafka({
   clientId: "notification-service",
-  brokers: ["localhost:9092"],
+  brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
 });
 
 const consumer = kafka.consumer({ groupId: "notification-group" });

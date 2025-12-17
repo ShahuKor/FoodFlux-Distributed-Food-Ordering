@@ -9,10 +9,10 @@ app.use(express.json());
 // Database connection
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
-  port: 5433, // ← Changed to 5433
-  database: "orders_db",
-  user: "admin",
-  password: "password",
+  port: process.env.DB_PORT || 5433,
+  database: process.env.DB_NAME || "orders_db",
+  user: process.env.DB_USER || "admin",
+  password: process.env.DB_PASSWORD || "password",
 });
 
 // Create users table on startup
