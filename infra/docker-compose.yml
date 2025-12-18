@@ -126,7 +126,7 @@ services:
       DB_NAME: orders_db
       DB_USER: admin
       DB_PASSWORD: password
-      KAFKA_BROKERS: kafka:29092
+      KAFKA_BROKERS: kafka:9092
       PORT: 3003
     ports:
       - "3003:3003"
@@ -148,7 +148,7 @@ services:
       DB_NAME: orders_db
       DB_USER: admin
       DB_PASSWORD: password
-      KAFKA_BROKERS: kafka:29092
+      KAFKA_BROKERS: kafka:9092
       PORT: 3004
     ports:
       - "3004:3004"
@@ -170,7 +170,7 @@ services:
       DB_NAME: orders_db
       DB_USER: admin
       DB_PASSWORD: password
-      KAFKA_BROKERS: kafka:29092
+      KAFKA_BROKERS: kafka:9092
       PORT: 3005
     ports:
       - "3005:3005"
@@ -187,7 +187,7 @@ services:
       dockerfile: Dockerfile
     container_name: foodflux-notification-service
     environment:
-      KAFKA_BROKERS: kafka:29092
+      KAFKA_BROKERS: kafka:9092
       PORT: 3006
     ports:
       - "3006:3006"

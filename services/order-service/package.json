@@ -10,9 +10,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "kafkajs": "^2.2.4",
+    "opossum": "^5.0.1",
     "pg": "^8.16.3"
   }
 }

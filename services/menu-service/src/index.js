@@ -128,6 +128,23 @@ app.post("/menu-items", async (req, res) => {
   }
 });
 
+// Get single menu item by ID
+app.get("/menu-items/:id", async (req, res) => {
+  try {
+    const menuItem = await db.collection("menu_items").findOne({
+      _id: new ObjectId(req.params.id),
+    });
+
+    if (!menuItem) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+
+    res.json(menuItem);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch menu item" });
+  }
+});
+
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(` Menu Service running on port ${PORT}`);

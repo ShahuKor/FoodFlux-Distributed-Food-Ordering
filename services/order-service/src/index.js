@@ -1,6 +1,8 @@
 const express = require("express");
 const { Pool } = require("pg");
 const { Kafka } = require("kafkajs");
+const CircuitBreaker = require("opossum");
+const axios = require("axios");
 
 const app = express();
 app.use(express.json());
@@ -52,11 +54,51 @@ const init = async () => {
 
 init();
 
+// Circuit breaker for Menu Service
+const menuServiceUrl =
+  process.env.MENU_SERVICE_URL || "http://menu-service:3002";
+
+async function validateMenuItem(itemId) {
+  const response = await axios.get(`${menuServiceUrl}/menu-items/${itemId}`);
+  return response.data;
+}
+
+const menuCircuitBreaker = new CircuitBreaker(validateMenuItem, {
+  timeout: 3000,
+  errorThresholdPercentage: 50, // Open circuit if 50% of requests fail
+  resetTimeout: 10000, // Try again after 10 seconds
+});
+
+// Circuit breaker event logs
+menuCircuitBreaker.on("open", () => {
+  console.log("Circuit breaker OPENED - Menu Service is down");
+});
+
+menuCircuitBreaker.on("halfOpen", () => {
+  console.log("Circuit breaker HALF OPEN - Testing Menu Service");
+});
+
+menuCircuitBreaker.on("close", () => {
+  console.log("Circuit breaker CLOSED - Menu Service is healthy");
+});
+
+menuCircuitBreaker.fallback(() => {
+  console.log("Using fallback - skipping menu validation");
+  return { available: true, fallback: true };
+});
+
 // Healthcheck route
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "healthy", service: "order-service" });
+    res.json({
+      status: "healthy",
+      service: "order-service",
+      circuitBreaker: {
+        menuService: menuCircuitBreaker.opened ? "OPEN" : "CLOSED",
+        stats: menuCircuitBreaker.stats,
+      },
+    });
   } catch (error) {
     res.status(503).json({ status: "unhealthy", error: error.message });
   }
@@ -84,6 +126,34 @@ app.post("/orders", async (req, res) => {
       !deliveryAddress
     ) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+    // Validate menu items using circuit breaker
+    console.log("Validating menu items");
+    let validationSkipped = false;
+
+    for (const item of items) {
+      try {
+        const menuItem = await menuCircuitBreaker.fire(item.id);
+        if (menuItem.fallback) {
+          validationSkipped = true;
+        }
+        console.log(`Item ${item.name} validated`);
+      } catch (error) {
+        if (error.message === "Breaker is open") {
+          console.log(
+            "Circuit breaker is open - proceeding without validation"
+          );
+          validationSkipped = true;
+          break;
+        } else {
+          console.log(`Failed to validate item ${item.name}: ${error.message}`);
+          validationSkipped = true;
+        }
+      }
+    }
+
+    if (validationSkipped) {
+      console.log("Order placed with skipped validation");
     }
 
     await client.query("BEGIN");
