@@ -1,20 +1,41 @@
 "use client";
 import { useState, useEffect } from "react";
+import { requireAuth } from "../middleware";
 
 export default function Driver() {
   const [deliveries, setDeliveries] = useState([]);
+
+  useEffect(() => {
+    requireAuth("driver");
+  }, []);
+
+  const loadDeliveries = async () => {
+    // Fetch ALL deliveries
+    const availableRes = await fetch(
+      "http://localhost:3005/deliveries/available"
+    );
+    const available = await availableRes.json();
+
+    // fetch deliveries for driver
+    const myDeliveriesRes = await fetch(
+      "http://localhost:3005/deliveries/driver/100"
+    );
+    const myDeliveries = await myDeliveriesRes.json();
+
+    // Combine and remove duplicates
+    const all = [...available, ...myDeliveries].filter(
+      (delivery, index, self) =>
+        index === self.findIndex((d) => d.id === delivery.id)
+    );
+
+    setDeliveries(all);
+  };
 
   useEffect(() => {
     loadDeliveries();
     const interval = setInterval(loadDeliveries, 3000);
     return () => clearInterval(interval);
   }, []);
-
-  const loadDeliveries = async () => {
-    const res = await fetch("http://localhost:3005/deliveries/available");
-    const data = await res.json();
-    setDeliveries(data);
-  };
 
   const acceptDelivery = async (id) => {
     await fetch(`http://localhost:3005/deliveries/${id}/assign`, {

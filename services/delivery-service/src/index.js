@@ -1,8 +1,10 @@
 const express = require("express");
+const cors = require("cors");
 const { Pool } = require("pg");
 const { Kafka } = require("kafkajs");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // PostgreSQL connection
@@ -81,14 +83,16 @@ const startConsumer = async () => {
 
               // Create delivery record
               await pool.query(
-                `INSERT INTO deliveries (order_id, restaurant_id, restaurant_name, delivery_address, status)
-                 VALUES ($1, $2, $3, $4, 'PENDING')
+                `INSERT INTO deliveries (order_id, restaurant_id, restaurant_name, delivery_address, status, user_id)
+                 VALUES ($1, $2, $3, $4, $5, $6)
                  ON CONFLICT (order_id) DO NOTHING`,
                 [
                   event.orderId,
                   order.restaurant_id,
                   order.restaurant_name,
                   order.delivery_address,
+                  "PENDING",
+                  order.user_id,
                 ]
               );
 
@@ -103,6 +107,7 @@ const startConsumer = async () => {
                     value: JSON.stringify({
                       eventType: "DELIVERY_CREATED",
                       orderId: event.orderId,
+                      userId: delivery.user_id,
                       timestamp: new Date().toISOString(),
                     }),
                   },
@@ -222,6 +227,7 @@ app.post("/deliveries/:id/assign", async (req, res) => {
             deliveryId: delivery.id,
             driverId: driverId,
             driverName: driverName,
+            userId: delivery.user_id,
             timestamp: new Date().toISOString(),
           }),
         },
@@ -281,6 +287,7 @@ app.patch("/deliveries/:id/status", async (req, res) => {
             eventType: "DELIVERY_STATUS_UPDATED",
             orderId: delivery.order_id,
             deliveryId: delivery.id,
+            userId: delivery.user_id,
             status: status,
             timestamp: new Date().toISOString(),
           }),

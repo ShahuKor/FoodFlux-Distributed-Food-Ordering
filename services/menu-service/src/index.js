@@ -1,7 +1,9 @@
 const express = require("express");
+const cors = require("cors");
 const { MongoClient, ObjectId } = require("mongodb");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost:27017";

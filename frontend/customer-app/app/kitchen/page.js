@@ -1,13 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-
+import { requireAuth } from "../middleware";
 export default function Kitchen() {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    loadOrders();
-    const interval = setInterval(loadOrders, 3000);
-    return () => clearInterval(interval);
+    requireAuth("restaurant");
   }, []);
 
   const loadOrders = async () => {
@@ -15,6 +13,12 @@ export default function Kitchen() {
     const data = await res.json();
     setOrders(data);
   };
+
+  useEffect(() => {
+    loadOrders();
+    const interval = setInterval(loadOrders, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const updateStatus = async (orderId, status) => {
     await fetch(`http://localhost:3004/kitchen/orders/${orderId}/status`, {
@@ -37,7 +41,7 @@ export default function Kitchen() {
                 <h3 className="text-xl font-bold">Order #{order.order_id}</h3>
                 <p className="text-gray-600">{order.restaurant_name}</p>
                 <div className="mt-2">
-                  {JSON.parse(order.items).map((item, i) => (
+                  {order.items.map((item, i) => (
                     <p key={i}>
                       • {item.name} x{item.quantity}
                     </p>
@@ -62,12 +66,20 @@ export default function Kitchen() {
 
             <div className="mt-4 flex gap-2">
               {order.status === "PENDING" && (
-                <button
-                  onClick={() => updateStatus(order.id, "ACCEPTED")}
-                  className="bg-blue-500 text-white px-4 py-2 rounded"
-                >
-                  Accept
-                </button>
+                <>
+                  <button
+                    onClick={() => updateStatus(order.id, "ACCEPTED")}
+                    className="bg-blue-500 text-white px-4 py-2 rounded"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => updateStatus(order.id, "DECLINED")}
+                    className="bg-red-500 text-white px-4 py-2 rounded"
+                  >
+                    Decline
+                  </button>
+                </>
               )}
               {order.status === "ACCEPTED" && (
                 <button

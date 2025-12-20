@@ -1,18 +1,43 @@
 "use client";
 import { useState, useEffect } from "react";
+import io from "socket.io-client";
+import { requireAuth } from "./middleware";
 
 export default function Home() {
   const [restaurants, setRestaurants] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  useEffect(() => {
+    requireAuth("customer");
+  }, []);
 
   // Fetch restaurants
   useEffect(() => {
     fetch("http://localhost:3002/restaurants")
       .then((res) => res.json())
       .then((data) => setRestaurants(data));
+  }, []);
+
+  const removeFromCart = (index) => {
+    setCart(cart.filter((_, i) => i !== index));
+  };
+  useEffect(() => {
+    const socket = io("http://localhost:3006");
+
+    socket.on("connect", () => {
+      console.log("Connected to notifications");
+      socket.emit("register", 1); // userId = 1
+    });
+
+    socket.on("order-update", (notification) => {
+      console.log("Order update:", notification);
+      setNotifications((prev) => [notification, ...prev]);
+    });
+
+    return () => socket.disconnect();
   }, []);
 
   // Fetch menu when restaurant selected
@@ -62,6 +87,16 @@ export default function Home() {
           Order placed successfully!
         </div>
       )}
+      {notifications.length > 0 && (
+        <div className="bg-blue-100 p-4 rounded mb-4">
+          <h3 className="font-bold mb-2">Notifications:</h3>
+          {notifications.slice(0, 3).map((notif, i) => (
+            <p key={i} className="text-sm">
+              {notif.type} - Order #{notif.orderId}
+            </p>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-8">
         {/* Restaurants */}
@@ -105,6 +140,12 @@ export default function Home() {
               <p>
                 {item.name} - ${item.price}
               </p>
+              <button
+                onClick={() => removeFromCart(i)}
+                className="text-red-500 font-bold"
+              >
+                Remove
+              </button>
             </div>
           ))}
 

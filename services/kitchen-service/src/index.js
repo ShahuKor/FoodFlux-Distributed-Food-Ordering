@@ -1,8 +1,10 @@
 const express = require("express");
+const cors = require("cors");
 const { Pool } = require("pg");
 const { Kafka } = require("kafkajs");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // PostgreSQL connection
@@ -64,14 +66,13 @@ const startConsumer = async () => {
           try {
             // Store in kitchen database
             await pool.query(
-              `INSERT INTO kitchen_orders (order_id, restaurant_id, restaurant_name, items, status)
-               VALUES ($1, $2, $3, $4, 'PENDING')
-               ON CONFLICT (order_id) DO NOTHING`,
+              `INSERT INTO kitchen_orders (order_id, restaurant_id, items, status, user_id)
+               VALUES ($1, $2, $3, 'PENDING', $4)`,
               [
                 event.orderId,
                 event.restaurantId,
-                event.restaurantName,
                 JSON.stringify(event.items),
+                event.userId,
               ]
             );
 
@@ -132,9 +133,13 @@ app.get("/kitchen/orders", async (req, res) => {
 //update order status
 app.patch("/kitchen/orders/:id/status", async (req, res) => {
   try {
-    const { status } = req.body; // 'ACCEPTED', 'COOKING', 'READY', 'COMPLETED'
+    const { status } = req.body; // 'ACCEPTED', 'COOKING', 'READY', 'DECLINED'
 
-    if (!["ACCEPTED", "COOKING", "READY", "COMPLETED"].includes(status)) {
+    if (
+      !["ACCEPTED", "COOKING", "READY", "COMPLETED", "DECLINED"].includes(
+        status
+      )
+    ) {
       return res.status(400).json({ error: "Invalid status" });
     }
 
@@ -164,6 +169,7 @@ app.patch("/kitchen/orders/:id/status", async (req, res) => {
             kitchenOrderId: order.id,
             status: status,
             restaurantId: order.restaurant_id,
+            userId: order.user_id,
             timestamp: new Date().toISOString(),
           }),
         },
