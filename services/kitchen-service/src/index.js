@@ -196,6 +196,16 @@ app.patch("/kitchen/orders/:id/status", async (req, res) => {
   }
 });
 
+app.delete("/kitchen/orders/clear-all", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM kitchen_orders");
+    res.json({ message: "All orders cleared successfully" });
+  } catch (error) {
+    console.error("Failed to clear orders:", error);
+    res.status(500).json({ error: "Failed to clear orders" });
+  }
+});
+
 process.on("SIGTERM", async () => {
   await consumer.disconnect();
   await producer.disconnect();

@@ -29,9 +29,34 @@ export default function Kitchen() {
     loadOrders();
   };
 
+  const clearAllOrders = async () => {
+    try {
+      // DELETE from backend
+      await fetch("http://localhost:3004/kitchen/orders/clear-all", {
+        method: "DELETE",
+      });
+
+      // Clear from UI
+      setOrders([]);
+    } catch (error) {
+      console.error("Failed to clear orders:", error);
+      alert("Failed to clear orders");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-4xl font-bold mb-8">Kitchen Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold mb-8">Kitchen Dashboard</h1>
+        {orders.length > 0 && (
+          <button
+            onClick={clearAllOrders}
+            className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600"
+          >
+            Clear All Orders ({orders.length})
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-4">
         {orders.map((order) => (
@@ -101,6 +126,11 @@ export default function Kitchen() {
           </div>
         ))}
       </div>
+      {orders.length === 0 && (
+        <div className="text-center text-gray-500 mt-20">
+          <p className="text-xl">No orders in queue</p>
+        </div>
+      )}
     </div>
   );
 }

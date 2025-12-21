@@ -85,7 +85,8 @@ const startConsumer = async () => {
               await pool.query(
                 `INSERT INTO deliveries (order_id, restaurant_id, restaurant_name, delivery_address, status, user_id)
                  VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT (order_id) DO NOTHING`,
+                 ON CONFLICT (order_id) DO NOTHING
+                 RETURNING *`,
                 [
                   event.orderId,
                   order.restaurant_id,
@@ -97,6 +98,8 @@ const startConsumer = async () => {
               );
 
               console.log(`Delivery created for order ${event.orderId}`);
+
+              const delivery = deliveryResult.rows[0];
 
               // Publish delivery event created
               await producer.send({
