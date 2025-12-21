@@ -57,8 +57,7 @@ const init = async () => {
 init();
 
 // Circuit breaker for Menu Service
-const menuServiceUrl =
-  process.env.MENU_SERVICE_URL || "http://menu-service:3002";
+const menuServiceUrl = process.env.MENU_SERVICE_URL || "http://localhost:3002";
 
 async function validateMenuItem(itemId) {
   const response = await axios.get(`${menuServiceUrl}/menu-items/${itemId}`);
@@ -135,22 +134,20 @@ app.post("/orders", async (req, res) => {
 
     for (const item of items) {
       try {
-        const menuItem = await menuCircuitBreaker.fire(item.id);
-        if (menuItem.fallback) {
-          validationSkipped = true;
-        }
-        console.log(`Item ${item.name} validated`);
-      } catch (error) {
-        if (error.message === "Breaker is open") {
-          console.log(
-            "Circuit breaker is open - proceeding without validation"
-          );
-          validationSkipped = true;
-          break;
+        if (item._id) {
+          const menuItem = await menuCircuitBreaker.fire(item._id);
+          if (menuItem.fallback) {
+            validationSkipped = true;
+          }
+          console.log(`Item ${item.name} validated`);
         } else {
-          console.log(`Failed to validate item ${item.name}: ${error.message}`);
+          // No ID provided, skip validation
+          console.log(`Item ${item.name} - no ID, using fallback`);
           validationSkipped = true;
         }
+      } catch (error) {
+        console.log(`Failed to validate item ${item.name}: ${error.message}`);
+        validationSkipped = true;
       }
     }
 
