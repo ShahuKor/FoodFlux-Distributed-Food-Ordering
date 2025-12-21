@@ -88,15 +88,67 @@ export default function Home() {
         </div>
       )}
       {notifications.length > 0 && (
-        <div className="bg-blue-100 p-4 rounded mb-4">
-          <h3 className="font-bold mb-2">Notifications:</h3>
-          {notifications.slice(0, 3).map((notif, i) => (
-            <p key={i} className="text-sm">
-              {notif.type} - Order #{notif.orderId}
-            </p>
-          ))}
-        </div>
-      )}
+    <div className="bg-blue-100 p-4 rounded mb-4">
+      <h3 className="font-bold mb-2">Order Updates:</h3>
+      {notifications.slice(0, 5).map((notif, i) => {
+        let message = "";
+        let emoji = "📦";
+
+        switch (notif.type) {
+          case "ORDER_PLACED":
+            message = `Order #${notif.orderId} has been placed`;
+            emoji = "✅";
+            break;
+          case "ORDER_STATUS_UPDATED":
+            if (notif.data.status === "ACCEPTED") {
+              message = `Order #${notif.orderId} accepted by restaurant`;
+              emoji = "👨‍🍳";
+            } else if (notif.data.status === "COOKING") {
+              message = `Order #${notif.orderId} is being prepared`;
+              emoji = "🍳";
+            } else if (notif.data.status === "READY") {
+              message = `Order #${notif.orderId} is ready! Waiting for driver`;
+              emoji = "🎉";
+            } else if (notif.data.status === "DECLINED") {
+              message = `Order #${notif.orderId} was declined by restaurant`;
+              emoji = "❌";
+            }
+            break;
+          case "DELIVERY_CREATED":
+            message = `Delivery created for order #${notif.orderId}`;
+            emoji = "🚚";
+            break;
+          case "DELIVERY_ASSIGNED":
+            message = `Driver assigned to order #${notif.orderId}`;
+            emoji = "👤";
+            break;
+          case "DELIVERY_STATUS_UPDATED":
+            if (notif.data.status === "PICKED_UP") {
+              message = `Order #${notif.orderId} picked up by driver`;
+              emoji = "🏃";
+            } else if (notif.data.status === "DELIVERED") {
+              message = `Order #${notif.orderId} delivered! Enjoy your meal!`;
+              emoji = "✅";
+            }
+            break;
+          default:
+            message = `${notif.type} - Order #${notif.orderId}`;
+        }
+
+        return (
+          <div
+            key={i}
+            className="text-sm py-1 border-b border-blue-200 last:border-0"
+          >
+            <span className="mr-2">{emoji}</span>
+            {message}
+          </div>
+        );
+      })}
+    </div>
+  )
+}
+
 
       <div className="grid grid-cols-3 gap-8">
         {/* Restaurants */}
