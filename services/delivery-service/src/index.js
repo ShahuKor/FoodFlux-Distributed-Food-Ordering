@@ -82,7 +82,7 @@ const startConsumer = async () => {
               const order = orderResult.rows[0];
 
               // Create delivery record
-              await pool.query(
+              const deliveryResult = await pool.query(
                 `INSERT INTO deliveries (order_id, restaurant_id, restaurant_name, delivery_address, status, user_id)
                  VALUES ($1, $2, $3, $4, $5, $6)
                  ON CONFLICT (order_id) DO NOTHING
