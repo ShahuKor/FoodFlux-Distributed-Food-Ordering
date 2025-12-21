@@ -189,5 +189,5 @@ process.on("SIGTERM", async () => {
 
 const PORT = process.env.PORT || 3006;
 server.listen(PORT, () => {
-  console.log(`🚀 Notification Service running on port ${PORT}`);
+  console.log(`Notification Service running on port ${PORT}`);
 });
